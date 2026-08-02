@@ -56,7 +56,7 @@ services:
       timeout: 2s
       retries: 15
     restart: unless-stopped
-    networks: [watchdog-internal]
+    networks: [watchdog-edge, watchdog-internal]
 
   watchdog:
     <<: *watchdog-image
@@ -81,13 +81,14 @@ services:
     restart: unless-stopped
     cpus: 1.0
     mem_limit: 256m
-    networks: [watchdog-internal]
+    networks: [watchdog-edge, watchdog-internal]
 
 volumes:
   postgres-data:
   demo-certs:
 
 networks:
+  watchdog-edge:
+    driver: bridge
   watchdog-internal:
     internal: true
-

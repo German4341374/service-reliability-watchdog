@@ -11,7 +11,7 @@ consumers) from maximum simultaneous network operations. Each endpoint has its o
 interval, retry count, and circuit state.
 
 The probe first resolves DNS and then runs its protocol check. Only Unavailable results are
-retried. Backoff doubles from the configured base delay, is capped, and receives ±20% jitter.
+retried. Backoff doubles from the configured base delay, is capped, and receives +/-20% jitter.
 Degraded results are successful checks and are not retried.
 
 After the configured number of consecutive failures, the endpoint circuit opens. Checks are
@@ -51,6 +51,6 @@ growth and duplicate replay but creates an explicit monitoring-data gap.
 ## Trust boundaries
 
 YAML configuration is trusted operator input. Header values and expected text are excluded from
-API JSON and never logged. The API is read-only, but has no authentication. PostgreSQL is available
-only on the internal Compose network, while host ports bind to `127.0.0.1`.
-
+API JSON and never logged. The API is read-only, but has no authentication. PostgreSQL is attached
+only to the internal Compose network. The watchdog and controlled demo target also join a separate
+edge network so Docker can publish their ports, which remain bound exclusively to `127.0.0.1`.
