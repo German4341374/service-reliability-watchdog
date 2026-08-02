@@ -143,10 +143,10 @@ func (p *Postgres) RecordResult(ctx context.Context, result domain.CheckResult, 
 			INSERT INTO alerts (endpoint_id, state, dedupe_key, created_at, message)
 			SELECT $1,$2,$3,$4,$5
 			WHERE NOT EXISTS (
-				SELECT 1 FROM alerts WHERE dedupe_key = $3 AND created_at >= $4 - $6::interval
+				SELECT 1 FROM alerts WHERE dedupe_key = $3 AND created_at >= $6
 			) RETURNING id`,
 			alert.EndpointID, alert.State, alert.DedupeKey, alert.CreatedAt,
-			alert.Message, intervalString(dedupeWindow),
+			alert.Message, alert.CreatedAt.Add(-dedupeWindow),
 		).Scan(&alert.ID)
 		if err == nil {
 			outcome.Alert = &alert
@@ -258,8 +258,4 @@ func scanResult(row rowScanner) (domain.CheckResult, error) {
 
 func alertable(state domain.State) bool {
 	return state == domain.StateDegraded || state == domain.StateUnavailable
-}
-
-func intervalString(value time.Duration) string {
-	return fmt.Sprintf("%f seconds", value.Seconds())
 }

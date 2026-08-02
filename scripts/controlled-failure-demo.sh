@@ -2,8 +2,8 @@
 set -Eeuo pipefail
 
 compose=(docker compose)
-base_url="http://127.0.0.1:${WATCHDOG_PORT:-8080}"
-target_url="http://127.0.0.1:18090"
+base_url=""
+target_url=""
 
 cleanup() {
   if [[ "${KEEP_DEMO:-0}" != "1" ]]; then
@@ -36,8 +36,25 @@ wait_state() {
   return 1
 }
 
+published_url() {
+  local service="$1"
+  local container_port="$2"
+  local mapping
+  mapping="$("${compose[@]}" port "$service" "$container_port" | tail -n 1)"
+  if [[ -z "$mapping" ]]; then
+    echo "No published port found for $service:$container_port" >&2
+    "${compose[@]}" ps >&2
+    return 1
+  fi
+  printf 'http://127.0.0.1:%s' "${mapping##*:}"
+}
+
 cp -n .env.example .env
 "${compose[@]}" up --detach --build
+"${compose[@]}" ps
+base_url="$(published_url watchdog 8080)"
+target_url="$(published_url demo-target 8090)"
+echo "watchdog API available at $base_url"
 wait_http "$base_url/health/ready"
 wait_state Healthy
 
@@ -63,4 +80,3 @@ echo "recovery transition verified"
 
 curl --fail --silent "$base_url/metrics" | grep -q '^watchdog_checks_total'
 echo "controlled failure, restart, persistence, recovery, and metrics checks passed"
-
