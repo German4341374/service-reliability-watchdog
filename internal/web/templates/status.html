@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="30">
+  <title>Service Reliability Watchdog</title>
+  <style>
+    :root { color-scheme: dark; --bg:#08111f; --panel:#101d30; --line:#26364d; --text:#e5edf8; --muted:#93a4ba; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:15px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--text); }
+    main { width:min(1180px,94vw); margin:0 auto; padding:40px 0 64px; }
+    header { display:flex; justify-content:space-between; gap:24px; align-items:end; margin-bottom:24px; }
+    h1 { margin:0; font-size:clamp(1.8rem,4vw,3rem); letter-spacing:-.04em; }
+    .subtitle,.muted { color:var(--muted); }
+    .summary { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin:24px 0; }
+    .metric,.card { background:var(--panel); border:1px solid var(--line); border-radius:14px; }
+    .metric { padding:16px; }
+    .metric strong { display:block; font-size:1.6rem; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(310px,1fr)); gap:16px; }
+    .card { padding:20px; }
+    .card-head { display:flex; justify-content:space-between; gap:12px; align-items:start; }
+    h2 { margin:0; font-size:1.15rem; }
+    .state { border-radius:999px; padding:4px 10px; font-weight:700; font-size:.78rem; }
+    .healthy { background:#123f2c; color:#7af2ad; }
+    .degraded { background:#4d3b12; color:#ffd977; }
+    .unavailable { background:#4b1e27; color:#ff91a5; }
+    .maintenance { background:#243e63; color:#99c7ff; }
+    .unknown { background:#303b4c; color:#c0c9d7; }
+    dl { display:grid; grid-template-columns:1fr auto; gap:8px 16px; margin:18px 0; }
+    dt { color:var(--muted); } dd { margin:0; font-variant-numeric:tabular-nums; }
+    .bar { height:8px; border-radius:4px; background:#253249; overflow:hidden; }
+    .bar span { display:block; height:100%; background:#5ad391; }
+    .transitions { padding:0; margin:16px 0 0; list-style:none; font-size:.86rem; }
+    .transitions li { border-top:1px solid var(--line); padding:9px 0; }
+    code { color:#a9c9ff; }
+    @media(max-width:720px) { .summary{grid-template-columns:repeat(2,1fr)} header{display:block} }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>Service Reliability Watchdog</h1><div class="subtitle">Synthetic HTTP, TCP, DNS and TLS monitoring</div></div>
+    <div class="muted">Updated {{.GeneratedAt.Format "2006-01-02 15:04:05 UTC"}}</div>
+  </header>
+  <section class="summary" aria-label="Current status summary">
+    <div class="metric"><span class="muted">Healthy</span><strong>{{.Aggregate.Healthy}}</strong></div>
+    <div class="metric"><span class="muted">Degraded</span><strong>{{.Aggregate.Degraded}}</strong></div>
+    <div class="metric"><span class="muted">Unavailable</span><strong>{{.Aggregate.Unavailable}}</strong></div>
+    <div class="metric"><span class="muted">Maintenance</span><strong>{{.Aggregate.Maintenance}}</strong></div>
+    <div class="metric"><span class="muted">Unknown</span><strong>{{.Aggregate.Unknown}}</strong></div>
+  </section>
+  <section class="grid">
+  {{range .Endpoints}}
+    <article class="card">
+      <div class="card-head">
+        <div><h2>{{.Endpoint.Name}}</h2><code>{{.Endpoint.Type}} · {{.Endpoint.ID}}</code></div>
+        {{if .LastResult}}<span class="state {{stateClass .LastResult.State}}">{{.LastResult.State}}</span>{{else}}<span class="state unknown">Unknown</span>{{end}}
+      </div>
+      <dl>
+        <dt>Rolling uptime</dt><dd>{{percent .Uptime}}</dd>
+        <dt>SLO target</dt><dd>{{percent .SLO.AvailabilityTarget}}</dd>
+        <dt>Error budget remaining</dt><dd>{{percent .SLO.ErrorBudgetRemain}}</dd>
+        <dt>Burn rate</dt><dd>{{printf "%.2fx" .SLO.BurnRate}}</dd>
+        <dt>Latency target</dt><dd>{{duration .SLO.LatencyTarget}}</dd>
+        {{if .LastResult}}<dt>Response time</dt><dd>{{duration .LastResult.Latency}}</dd><dt>Last check</dt><dd>{{.LastResult.CheckedAt.Format "15:04:05 UTC"}}</dd>{{end}}
+      </dl>
+      <div class="bar" title="Availability"><span style="width:{{percent .Uptime}}"></span></div>
+      {{if .LastResult}}<p class="muted">{{.LastResult.Message}}</p>{{end}}
+      {{if .Transitions}}<ul class="transitions">{{range .Transitions}}<li><strong>{{.FromState}} → {{.ToState}}</strong><br><span class="muted">{{.ChangedAt.Format "2006-01-02 15:04:05 UTC"}}</span></li>{{end}}</ul>{{end}}
+    </article>
+  {{end}}
+  </section>
+</main>
+</body>
+</html>
+

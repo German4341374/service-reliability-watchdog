@@ -1,0 +1,72 @@
+server:
+  address: ":8080"
+  shutdownTimeout: 10s
+
+database:
+  url: ${DATABASE_URL}
+  connectTimeout: 20s
+  maxConnections: 10
+
+scheduler:
+  workers: 6
+  concurrencyLimit: 3
+  queueSize: 100
+  retryBaseDelay: 200ms
+  retryMaxDelay: 3s
+  circuitFailures: 3
+  circuitCooldown: 20s
+
+alerting:
+  dedupeWindow: 15m
+
+endpoints:
+  - id: public-api
+    name: Public API health
+    type: http
+    address: https://service.example.test/health
+    method: GET
+    expectedStatus: 200
+    expectedText: healthy
+    timeout: 5s
+    interval: 30s
+    retries: 2
+    latencyTarget: 750ms
+    tlsWarnBefore: 720h
+    slo:
+      availabilityTarget: 0.999
+      latencyTarget: 750ms
+      window: 720h
+
+  - id: database-tcp
+    name: Database TCP listener
+    type: tcp
+    address: database.example.test:5432
+    timeout: 3s
+    interval: 30s
+    retries: 1
+    latencyTarget: 250ms
+    slo:
+      availabilityTarget: 0.999
+      latencyTarget: 250ms
+      window: 720h
+
+  - id: public-tls
+    name: Public TLS certificate
+    type: tls
+    address: service.example.test:443
+    timeout: 5s
+    interval: 5m
+    retries: 1
+    latencyTarget: 1s
+    tlsWarnBefore: 720h
+    slo:
+      availabilityTarget: 0.9999
+      latencyTarget: 1s
+      window: 720h
+
+maintenanceWindows:
+  - name: Example database maintenance
+    start: 2099-01-01T01:00:00Z
+    end: 2099-01-01T02:00:00Z
+    endpoints: [database-tcp]
+
