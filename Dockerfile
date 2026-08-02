@@ -10,7 +10,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.version=
     && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/certgen ./cmd/certgen \
     && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/healthcheck ./cmd/healthcheck
 
-FROM alpine:3.23.3 AS runtime
+FROM alpine:3.24.1 AS runtime
 
 RUN addgroup -S -g 10001 watchdog \
     && adduser -S -D -H -u 10001 -G watchdog watchdog
