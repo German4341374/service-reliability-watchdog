@@ -1,0 +1,59 @@
+server:
+  address: ":8080"
+  shutdownTimeout: 10s
+database:
+  url: ${DATABASE_URL}
+  connectTimeout: 30s
+  maxConnections: 10
+scheduler:
+  workers: 6
+  concurrencyLimit: 3
+  queueSize: 50
+  retryBaseDelay: 100ms
+  retryMaxDelay: 500ms
+  circuitFailures: 3
+  circuitCooldown: 8s
+alerting:
+  dedupeWindow: 1m
+endpoints:
+  - id: demo-http
+    name: Controlled HTTP target
+    type: http
+    address: http://demo-target:8090/health
+    expectedStatus: 200
+    expectedText: demo target healthy
+    timeout: 1s
+    interval: 2s
+    retries: 1
+    latencyTarget: 500ms
+    slo:
+      availabilityTarget: 0.99
+      latencyTarget: 500ms
+      window: 24h
+  - id: postgres-tcp
+    name: PostgreSQL TCP listener
+    type: tcp
+    address: postgres:5432
+    timeout: 1s
+    interval: 3s
+    retries: 1
+    latencyTarget: 250ms
+    slo:
+      availabilityTarget: 0.99
+      latencyTarget: 250ms
+      window: 24h
+  - id: demo-tls
+    name: Locally trusted TLS target
+    type: tls
+    address: demo-target:8443
+    timeout: 2s
+    interval: 5s
+    retries: 1
+    latencyTarget: 1s
+    tlsWarnBefore: 720h
+    slo:
+      availabilityTarget: 0.99
+      latencyTarget: 1s
+      window: 24h
+maintenanceWindows: []
+

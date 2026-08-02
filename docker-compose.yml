@@ -1,0 +1,93 @@
+name: service-reliability-watchdog
+
+x-watchdog-image: &watchdog-image
+  build:
+    context: .
+    target: runtime
+    args:
+      VERSION: 0.1.0
+  image: service-reliability-watchdog:0.1.0
+
+services:
+  cert-init:
+    <<: *watchdog-image
+    entrypoint: ["/certgen"]
+    command: ["-out", "/certs", "-owner", "10001"]
+    user: "0:0"
+    read_only: true
+    volumes:
+      - demo-certs:/certs
+    restart: "no"
+    networks: [watchdog-internal]
+
+  postgres:
+    image: postgres:18.4-alpine3.23
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Copy .env.example to .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Copy .env.example to .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env}
+      PGDATA: /var/lib/postgresql/18/docker
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+    networks: [watchdog-internal]
+
+  demo-target:
+    <<: *watchdog-image
+    entrypoint: ["/demo-target"]
+    command: ["-http", ":8090", "-tls", ":8443", "-cert", "/certs/server.pem", "-key", "/certs/server-key.pem"]
+    depends_on:
+      cert-init:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs: [/tmp]
+    volumes:
+      - demo-certs:/certs:ro
+    ports:
+      - "127.0.0.1:18090:8090"
+    healthcheck:
+      test: ["CMD", "/healthcheck", "http://127.0.0.1:8090/control"]
+      interval: 3s
+      timeout: 2s
+      retries: 15
+    restart: unless-stopped
+    networks: [watchdog-internal]
+
+  watchdog:
+    <<: *watchdog-image
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      SSL_CERT_FILE: /certs/ca.pem
+    command: ["-config", "/etc/watchdog/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      demo-target:
+        condition: service_healthy
+      cert-init:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs: [/tmp]
+    volumes:
+      - ./config.compose.yaml:/etc/watchdog/config.yaml:ro
+      - demo-certs:/certs:ro
+    ports:
+      - "127.0.0.1:${WATCHDOG_PORT:-8080}:8080"
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 256m
+    networks: [watchdog-internal]
+
+volumes:
+  postgres-data:
+  demo-certs:
+
+networks:
+  watchdog-internal:
+    internal: true
+

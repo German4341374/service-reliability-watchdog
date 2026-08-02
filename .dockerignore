@@ -1,0 +1,11 @@
+.git
+.github
+.tools
+bin
+coverage.out
+coverage.html
+.env
+docs
+tests
+tmp
+

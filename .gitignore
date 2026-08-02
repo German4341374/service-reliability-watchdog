@@ -1,0 +1,14 @@
+.tools/
+bin/
+coverage.out
+coverage.html
+*.test
+*.prof
+.env
+config.yaml
+tmp/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+

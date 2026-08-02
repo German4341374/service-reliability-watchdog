@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Go quality and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.5"
+          cache: true
+
+      - name: Verify module files
+        run: go mod verify
+
+      - name: Check formatting
+        run: test -z "$(gofmt -l ./cmd ./internal ./migrations)"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test with race detector and coverage
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Build all commands
+        run: go build ./cmd/...
+
+      - name: Install vulnerability scanner
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
+
+      - name: Scan reachable Go vulnerabilities
+        run: govulncheck ./...
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v6
+        with:
+          name: go-coverage
+          path: coverage.out
+          if-no-files-found: error
+          retention-days: 14
+
+  compose-recovery:
+    name: Compose failure and restart recovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quality
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Prepare development environment
+        run: cp .env.example .env
+
+      - name: Validate Compose model
+        run: docker compose config --quiet
+
+      - name: Run controlled failure scenario
+        env:
+          KEEP_DEMO: "1"
+        run: bash scripts/controlled-failure-demo.sh
+
+      - name: Capture service logs
+        if: always()
+        run: docker compose logs --no-color > compose.log
+
+      - name: Upload Compose logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: compose-recovery-logs
+          path: compose.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Clean up Compose resources
+        if: always()
+        run: docker compose down --volumes --remove-orphans
+

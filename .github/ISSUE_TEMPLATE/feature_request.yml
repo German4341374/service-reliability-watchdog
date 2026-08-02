@@ -1,0 +1,19 @@
+name: Feature request
+description: Propose a focused reliability improvement.
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Reliability problem
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Include scheduling, data, SLO, security, and failure-mode implications.
+    validations:
+      required: true
+
