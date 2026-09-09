@@ -4,10 +4,11 @@
 [![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-`service-reliability-watchdog` is a compact synthetic monitoring service for HTTP, TCP, DNS, and
-TLS endpoints. It schedules checks through a bounded worker pool, stores results and state changes
-in PostgreSQL, exposes a public status page and JSON API, and publishes Prometheus metrics. SLO
-views turn check history into availability, latency compliance, error budget, and burn rate.
+Check whether a service responds, whether DNS resolves, and whether its TLS certificate is
+valid or about to expire. Results go into PostgreSQL so you can look back after a restart.
+
+The status page shows recent checks and changes. Prometheus metrics and SLO summaries help
+you see how much downtime or slow response time has built up against your targets.
 
 ## Features
 
@@ -249,4 +250,3 @@ docs/runbooks/       Incident response and recovery procedures
 ## License
 
 [MIT](LICENSE)
-
