@@ -53,7 +53,7 @@ workers from creating contradictory transitions or duplicate alerts. See
 
 - Docker Engine with Docker Compose v2
 - `curl`, `jq`, and Bash for the controlled demo
-- Go 1.26 for native development
+- Go 1.26.7 or newer for native development
 - Windows users: WSL2 with Docker Desktop integration, or Linux
 
 No cloud account or paid resource is required.
