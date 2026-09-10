@@ -122,6 +122,66 @@ func TestTLSValidationFailure(t *testing.T) {
 	}
 }
 
+func TestHTTPSCheckUsesHTTP2WithTrustedCertificate(t *testing.T) {
+	protocol := make(chan int, 1)
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		protocol <- request.ProtoMajor
+		_, _ = writer.Write([]byte("ready"))
+	}))
+	server.EnableHTTP2 = true
+	server.StartTLS()
+	defer server.Close()
+	pool := x509.NewCertPool()
+	pool.AddCert(server.Certificate())
+	checker := New()
+	checker.TLSConfig = &tls.Config{RootCAs: pool}
+	result := checker.Check(context.Background(), domain.Endpoint{
+		ID: "h2", Type: domain.CheckHTTP, Address: server.URL, Method: "GET",
+		ExpectedStatus: 200, ExpectedText: "ready", Timeout: time.Second,
+	})
+	if result.State != domain.StateHealthy || result.TLSValid == nil || !*result.TLSValid {
+		t.Fatalf("unexpected HTTPS result: %+v", result)
+	}
+	if got := <-protocol; got != 2 {
+		t.Fatalf("expected HTTP/2, got HTTP/%d", got)
+	}
+}
+
+func TestHTTPRedirectCompatibility(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/start":
+			http.Redirect(writer, request, "/ready", http.StatusFound)
+		case "/loop":
+			http.Redirect(writer, request, "/loop", http.StatusFound)
+		case "/malformed":
+			writer.Header().Set("Location", "http://[invalid")
+			writer.WriteHeader(http.StatusFound)
+		default:
+			_, _ = writer.Write([]byte("ready"))
+		}
+	}))
+	defer server.Close()
+	for _, test := range []struct {
+		path  string
+		state domain.State
+	}{
+		{"/start", domain.StateHealthy},
+		{"/loop", domain.StateUnavailable},
+		{"/malformed", domain.StateUnavailable},
+	} {
+		t.Run(test.path, func(t *testing.T) {
+			result := New().Check(context.Background(), domain.Endpoint{
+				ID: "redirect", Type: domain.CheckHTTP, Address: server.URL + test.path,
+				Method: "GET", ExpectedStatus: 200, ExpectedText: "ready", Timeout: time.Second,
+			})
+			if result.State != test.state {
+				t.Fatalf("unexpected redirect result: %+v", result)
+			}
+		})
+	}
+}
+
 func TestSafeAddressRemovesCredentialsAndQuery(t *testing.T) {
 	endpoint := domain.Endpoint{Type: domain.CheckHTTP, Address: "https://user:secret@example.test/path?token=secret#part"}
 	if got := SafeAddress(endpoint); got != "https://example.test/path" {
