@@ -3,7 +3,7 @@ module github.com/German4341374/service-reliability-watchdog
 go 1.26.7
 
 require (
-	github.com/jackc/pgx/v5 v5.10.0
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/prometheus/client_golang v1.24.1
 	gopkg.in/yaml.v3 v3.0.1
 )
